@@ -1,0 +1,56 @@
+#!/usr/bin/env ruby
+
+require "rubygems"
+require "bundler/setup"
+require "newrelic_plugin"
+
+require 'sidekiq'
+require 'sidekiq/api'
+
+module SidekiqStatusAgent
+
+  class Agent < NewRelic::Plugin::Agent::Base
+
+    agent_guid "com.nama.newrelic-sidekiq-agent"
+    agent_config_options :instance_name, :uri, :namespace
+    agent_version '0.0.3'
+    agent_human_labels('Sidekiq') { instance_name }
+
+    def setup_metrics
+      @total_failed = NewRelic::Processor::EpochCounter.new
+      @processed    = NewRelic::Processor::EpochCounter.new
+    end
+
+    def poll_cycle
+
+      # Sidekiq.instance_variable_set(:@redis, nil)
+      # Sidekiq.configure_client do |config|
+        # config.redis = { :url => uri }
+      # end
+
+      # begin
+        stats = Sidekiq::Stats.new
+        workers = Sidekiq::Workers.new
+
+        report_metric "Workers/Working", "Workers",           workers.size
+        report_metric "Jobs/Pending", "Jobs",                 stats.enqueued
+        report_metric "Jobs/Processed", "Jobs",               stats.processed
+        report_metric "Jobs/Rate/Processed", "Jobs/Second",   @processed.process(stats.processed)
+        report_metric "Jobs/Rate/Failed", "Jobs/Second",      @total_failed.process(stats.failed)
+        report_metric "Jobs/Failed", "Jobs",                  stats.failed || 0
+
+        # stats.queues.each do |name, enqueued|
+          # report_metric "Queues/#{name}", "Enqueued", enqueued
+        # end
+      # end
+    end
+
+  end
+
+  NewRelic::Plugin::Config.config_file = File.dirname(__FILE__) + '/config/newrelic_plugin.yml'
+  NewRelic::Plugin::Setup.install_agent :sidekiq_status_agent, self
+
+  NewRelic::Plugin::Run.setup_and_run
+
+end
+
