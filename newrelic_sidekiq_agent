@@ -24,9 +24,9 @@ module SidekiqStatusAgent
     def poll_cycle
 
       # Sidekiq.instance_variable_set(:@redis, nil)
-      # Sidekiq.configure_client do |config|
-        # config.redis = { :url => uri }
-      # end
+      Sidekiq.configure_client do |config|
+        config.redis = { :url => uri }
+      end
 
       # begin
         stats = Sidekiq::Stats.new
