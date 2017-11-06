@@ -25,7 +25,8 @@ module SidekiqStatusAgent
 
       # Sidekiq.instance_variable_set(:@redis, nil)
       Sidekiq.configure_client do |config|
-        config.redis = { :url => uri }
+        url = ENV['REDIS_URL'] == "" ? uri : ENV['REDIS_URL']
+        config.redis = { :url => url }
       end
 
       # begin
